@@ -1,0 +1,72 @@
+<html data-lt-installed="true" style="--r: 0.8625;">
+
+<head>
+    <title>TETR.IO</title>
+    <link rel="stylesheet" href="https://tetr.io/css/tetrio.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0,maximum-scale=1,minimum-scale=1">
+    <style>
+        @font-face{src:url('/tetra/hun2.ttf');font-family:HUN}
+        * {
+            font-family: HUN;
+        }
+
+        .multilog_result_time {
+            width: auto;
+        }
+
+        .right_scroller {
+            padding: 0;
+            padding-left: 15vw;
+            top: 0;
+            bottom: 0;
+        }
+
+        #multilog {
+            margin-top: 2em;
+        }
+
+        #multilogplayers {
+            margin-top: 15px;
+        }
+
+        .leagueplayer .leagueplayer_name {
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body data-v="creamykagarin18451"
+    class="no_login_ceriad uses2fa supporter supporter_at_launch chatbg ceriad_exempt ceriad_disabled idlemouse nofocus"
+    data-country="FR" data-country-hidden="no" data-graphics="high">
+    <div id="menus" class="" data-menu-type="tetra">
+        <div id="footer">
+            <div id="footer_text" class="ns"><a class="tetra_pop" data-hover="tap" data-hit="click"
+                    data-username="takathedinosaur">{left_username}</a> versus <a class="tetra_pop" data-hover="tap"
+                    data-hit="click" data-username="bumtendo">{right_username}</a> played on {played_date}, {played_time}</div>
+        </div>
+        <div class="" data-menuview="multilog" id="multilogview">
+            <div class="right_scroller">
+                <div class="leagueplayers" id="multilogplayers">
+                    <div id="multilog_self" class="leagueplayer multilog_player leagueplayer_self ns tetra_pop"
+                        data-hover="tap" data-hit="click" data-username="takathedinosaur">
+                        <div class="leagueplayer_name">{left_username}</div>
+                        <div class="leagueplayer_count">{left_score}</div>
+                        <div class="leagueplayer_extra"><span>{left_pps}</span> PPS - <span>{left_apm}</span> APM -
+                            <span>{left_vs}</span> VS</div>
+                    </div>
+                    <div class="leagueplayer_vs ns">VS</div>
+                    <div id="multilog_opponent" class="leagueplayer multilog_player ns tetra_pop" data-hover="tap"
+                        data-hit="click" data-username="bumtendo">
+                        <div class="leagueplayer_name">{right_username}</div>
+                        <div class="leagueplayer_count">{right_score}</div>
+                        <div class="leagueplayer_extra"><span>{right_pps}</span> PPS - <span>{right_apm}</span> APM -
+                            <span>{right_vs}</span> VS</div>
+                    </div>
+                </div>
+                <div id="multilog" class="ns">
+                    {matches}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

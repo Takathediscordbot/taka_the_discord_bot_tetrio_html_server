@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<html data-lt-installed="true" style="--r: 0.8625;">
+
+<head>
+    <title>TETR.IO</title>
+    <link rel="stylesheet" href="https://tetr.io/css/tetrio.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0,maximum-scale=1,minimum-scale=1">
+    <style>
+        @font-face{src:url('/teto/hun2.ttf');font-family:HUN}
+        * {
+            font-family: HUN;
+        }
+        html, body,
+        #dialogs {
+            background: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="dialogs" class="">
+        <div class="oob_modal tetra_modal {{has_banner}}"> {{banner}}
+            <img class="avatar" src="{{avatar}}">
+            <h2>{{username}}{{verified}}{{flag}}</h2>
+            <h3>{{joined_at}} <span title="Amount of players who have friended this person"><img
+                        src="https://tetr.io/res/icon/friends.svg">{{friends}}</span></h3>
+            <div class="tetra_tag_holder ns">
+                {{mod_badge}}
+                <div title="53% towards next level" class="leveltag ns {{leveltag}}">
+                    {{level}}
+                </div>
+                {{game_time}}
+                {{total_games}}
+                {{supporter_badge}}
+                
+            </div>
+            {{distinguishment}}
+            {{bad_standing}}
+
+            {{badges}}
+            {{records}}
+        </div>
+    </div>
+
+</body>
+
+</html>
+
