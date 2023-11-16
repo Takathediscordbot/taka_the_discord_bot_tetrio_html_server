@@ -1,4 +1,4 @@
-use std::{time::Duration, sync::Arc, str::FromStr};
+use std::{time::Duration, sync::Arc, str::FromStr, fs::DirEntry};
 
 use axum::{
     http::StatusCode,
@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 
 use common::{Average, Averages, Stats, LeagueRecord, Round};
 use tetrio_api::{http, models::{streams::league_stream::LeagueEndContext, users::{user_rank::UserRank, user_role::UserRole, user_info::UserInfoPacketData}}};
+use itertools::Itertools;
+
+use moka::future::Cache;
+use tower_http::cors::CorsLayer;
 
 const TETRA_HTML_FILE: &str = include_str!("../assets/tetra/index.html");
 const TETRA_HTML_MATCH: &str = "<div class=\"multilog_result scroller_block zero\" data-hover=\"tap\" data-hit=\"click\">
@@ -102,7 +106,7 @@ const TETO_HTML_BAD_STANDING: &str = "<div class=\"tetra_badstanding ns\"><h1>BA
 const TETO_HTML_STAFF_DISTINGUISHMENT_SUBTITLE: &str = "<p>{{subtitle_text}}</p>";
 const TETO_HTML_STAFF_DISTINGUISHMENT_TETRIO_LOGO: &str = "<img src=\"https://tetr.io/res/tetrio-logo.svg\" style=\"filter: invert(1);\">";
 const TETO_HTML_STAFF_DISTINGUISHMENT_OSK: &str = "<img src=\"https://tetr.io/res/osk.svg\">";
-use moka::future::Cache;
+
 
 struct TetrioCachedClient {
    tetrio_replays_cache: Cache<Box<str>, Arc<GameReplayPacket>>
@@ -150,16 +154,40 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().expect("Couldn't read .env file");
     tracing_subscriber::fmt::init();
 
-    let ip_bind = std::env::var("BIND_URL").unwrap_or("0.0.0.0:8003".to_string());
+    let ip_bind = std::env::var("BIND_URL").unwrap_or("0.0.0.0:80".to_string());
     println!("{ip_bind}");
     let tetrio_token = std::env::var("TETRIO_API_TOKEN").expect("Couldn't get tetrio token");
 
     let state = AppState {tetrio_token, tetrio_http_client: Default::default()};
 
+    tokio::spawn(async {
+        let ip_bind = std::env::var("HEALTH_URL").unwrap_or("0.0.0.0:8080".to_string());
+        println!("{ip_bind}");
+    
+        let origins = [
+            "https://health.takathedinosaur.tech/".parse().unwrap()
+        ];
+        // build our application with a route
+        let cors = CorsLayer::new()
+            // allow `GET` and `POST` when accessing the resource
+            .allow_methods([reqwest::Method::GET])
+            // allow requests from any origin
+            .allow_origin(origins);
+        // build our application with a route
+        let app = Router::new()
+        .route("/health", axum::routing::get(health_status))
+        .route("/assets", axum::routing::get(assets_folder))
+        .layer(cors);
+    
+        // run our app with hyper
+        let _ = axum::Server::bind(&ip_bind.parse().unwrap())
+            .serve(app.into_make_service())
+            .await;
+    });
+
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(root))
         .route_service("/tetra/hun2.ttf", tower_http::services::ServeFile::new("./assets/tetra/hun2.ttf"))
         .route_service("/tetra/tetrio.css", tower_http::services::ServeFile::new("./assets/tetra/tetrio.css"))
         .route_service("/teto/hun2.ttf", tower_http::services::ServeFile::new("./assets/teto/hun2.ttf"))
@@ -170,6 +198,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/league_recent", get(league_recent))
         .route("/league_replay", get(league_replay))
         .route("/teto_test/:user_id", get(teto_test))
+        
         .with_state(state)
         ;
     
@@ -183,8 +212,49 @@ async fn main() -> anyhow::Result<()> {
 }
 
 
-async fn root() -> impl IntoResponse {
-    "Hello, World!"
+async fn health_status() -> impl IntoResponse {
+    "OK"
+}
+
+fn read_dir_entry(dir_entry: &DirEntry) -> String {
+    match dir_entry.file_type() {
+        Err(_) => String::from("(couldn't read file type)"),
+        Ok(f) => match (f.is_dir(), f.is_file()) {
+            (true, false) => {
+                match std::fs::read_dir(dir_entry.path()) {
+                    Ok(directory) => {
+                        directory.map(|f| {
+                            match f {
+                                Ok(f) => read_dir_entry(&f), 
+                                Err(_) => String::from("(couldn't read file)")
+                            }
+                        }).join("\n")
+            
+                    },
+                    Err(_) => return String::from("Couldn't read directory!"),
+                }
+            },
+            (false, true) => {
+                dir_entry.path().to_string_lossy().to_string()
+            },
+            _ => String::from("Unhandled file type")
+        }
+    }
+}
+
+async fn assets_folder() -> impl IntoResponse {
+    match std::fs::read_dir("./assets") {
+        Ok(directory) => {
+            directory.map(|f| {
+                match f {
+                    Ok(f) => read_dir_entry(&f), 
+                    Err(_) => String::from("(couldn't read file)")
+                }
+            }).join("\n")
+
+        },
+        Err(_) => return String::from("Couldn't read directory!"),
+    }
 }
 
 
@@ -878,18 +948,30 @@ struct ReplayParam {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-struct GameReplayGameBoardUser {
+pub struct GameReplayGameBoardUser {
     #[serde(rename = "_id")]
-    id: String,
-    username: String
+    pub id: String,
+    pub username: String
 }
 
 #[derive(Deserialize, Clone)]
-struct GameReplayGameBoard {
-    user: GameReplayGameBoardUser,
+pub struct GameReplayGameBoard {
+    pub user: Option<GameReplayGameBoardUser>,
+    pub id: Option<String>,
+    pub username: Option<String>,
     #[allow(unused)]
-    active: bool,
-    success: bool
+    pub active: bool,
+    pub success: bool
+}
+
+impl GameReplayGameBoard {
+    pub fn get_id(&self) -> Option<String> {
+        return self.id.clone().or(self.user.clone().map(|user| user.id))
+    }
+
+    pub fn get_username(&self) -> Option<String> {
+        return self.username.clone().or(self.user.clone().map(|user| user.username))
+    }
 }
 
 #[allow(unused)]
@@ -968,8 +1050,10 @@ async fn generate_league_replay(state: AppState, replay_id: &str, user_id: &str)
 
 
 
+
+
     let (Some(left), Some(right)) = (        
-        data.endcontext.iter().find(|f| f.user.id == user_id.into()), data.endcontext.iter().find(|f| f.user.id != user_id.into())) else {
+        data.endcontext.iter().find(|f| f.get_id().unwrap_or("".into()) == user_id.into()), data.endcontext.iter().find(|f| f.get_id().unwrap_or("".into()) != user_id.into())) else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse data (couldn't find end contexts)").into_response()
     };
 
@@ -978,14 +1062,14 @@ async fn generate_league_replay(state: AppState, replay_id: &str, user_id: &str)
     let league_record = LeagueRecord {
         averages: Averages {
             left: Average {
-                username: left.user.username.to_string(),
+                username: left.get_username().unwrap_or("".into()).to_string(),
                 pps: left.points.tertiary,
                 apm: left.points.secondary,
                 vs: left.points.extra.vs,
                 score: left.points.primary as u32,
             },
             right: Average {
-                username: right.user.username.to_string(),
+                username: right.get_username().unwrap_or("".into()).to_string(),
                 pps: right.points.tertiary,
                 apm: right.points.secondary,
                 vs: right.points.extra.vs,
@@ -1008,7 +1092,7 @@ async fn generate_league_replay(state: AppState, replay_id: &str, user_id: &str)
                     pps: left.points.tertiary_avg_tracking[index],
                     apm: left.points.secondary_avg_tracking[index],
                     vs: left.points.extra_avg_tracking.aggregate_stats_vs_score[index],
-                    success: match game_data.board.iter().find(|a| a.user.id == user_id) {
+                    success: match game_data.board.iter().find(|a| a.get_id().unwrap_or("".into()) == user_id) {
                         Some(e) => e.success,
                         None => return None
                     },
@@ -1017,7 +1101,7 @@ async fn generate_league_replay(state: AppState, replay_id: &str, user_id: &str)
                     pps: right.points.tertiary_avg_tracking[index],
                     apm: right.points.secondary_avg_tracking[index],
                     vs: right.points.extra_avg_tracking.aggregate_stats_vs_score[index],
-                    success: match game_data.board.iter().find(|a| a.user.id != user_id) {
+                    success: match game_data.board.iter().find(|a| a.get_id().unwrap_or("".into()) != user_id) {
                         Some(e) => e.success,
                         None => return None
                     },
