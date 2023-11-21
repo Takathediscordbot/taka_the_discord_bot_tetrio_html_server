@@ -10,12 +10,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use common::{Average, Averages, Stats, LeagueRecord, Round};
-use tetrio_api::{http, models::{streams::league_stream::LeagueEndContext, users::{user_rank::UserRank, user_role::UserRole, user_info::UserInfoPacketData}}};
+use tetrio_api::models::{streams::league_stream::LeagueEndContext, users::{user_rank::UserRank, user_role::UserRole, user_info::UserInfoPacketData}};
 use itertools::Itertools;
 
 use moka::future::Cache;
-use tower_http::cors::CorsLayer;
-
 const TETRA_HTML_FILE: &str = include_str!("../assets/tetra/index.html");
 const TETRA_HTML_MATCH: &str = "<div class=\"multilog_result scroller_block zero\" data-hover=\"tap\" data-hit=\"click\">
                         <div class=\"multilog_result_self {left_success}\"><span>{left_pps}</span> PPS - <span>{left_apm}</span> APM -
@@ -23,7 +21,7 @@ const TETRA_HTML_MATCH: &str = "<div class=\"multilog_result scroller_block zero
                         <div class=\"multilog_result_time\">{time}</div>
                         <div class=\"multilog_result_opponent {right_success}\"><span>{right_pps}</span> PPS - <span>{right_apm}</span> APM -
                             <span>{right_vs}</span> VS</div>
-                    </div>";
+                        </div>";
 
 
 const TETO_HTML_BOT_FILE: &str = include_str!("../assets/teto/bot.html");
@@ -121,7 +119,7 @@ impl Default for TetrioCachedClient {
 impl TetrioCachedClient {
     pub async fn fetch_tetrio_replay(&self, replay_id: &str, tetrio_token: &str) -> anyhow::Result<Arc<GameReplayPacket>> {
         let replay_id = replay_id.to_string().into_boxed_str();
-        if let Some(data) = self.tetrio_replays_cache.get(&replay_id) {
+        if let Some(data) = self.tetrio_replays_cache.get(&replay_id).await {
             return Ok(Arc::clone(&data));
         }
 
@@ -164,20 +162,14 @@ async fn main() -> anyhow::Result<()> {
         let ip_bind = std::env::var("HEALTH_URL").unwrap_or("0.0.0.0:8080".to_string());
         println!("{ip_bind}");
     
-        let origins = [
-            "https://health.takathedinosaur.tech/".parse().unwrap()
-        ];
-        // build our application with a route
-        let cors = CorsLayer::new()
-            // allow `GET` and `POST` when accessing the resource
-            .allow_methods([reqwest::Method::GET])
-            // allow requests from any origin
-            .allow_origin(origins);
+        // let origins = [
+        //     "https://health.takathedinosaur.tech/".parse().unwrap()
+        // ];
         // build our application with a route
         let app = Router::new()
         .route("/health", axum::routing::get(health_status))
-        .route("/assets", axum::routing::get(assets_folder))
-        .layer(cors);
+        .route("/assets", axum::routing::get(assets_folder));
+        
     
         // run our app with hyper
         let _ = axum::Server::bind(&ip_bind.parse().unwrap())
@@ -1016,7 +1008,7 @@ struct GameReplayPacket {
 
 // basic handler that responds with a static string
 async fn league_recent(State(state): State<AppState>, Query(user_id): Query<TetraParam>) -> Response {
-    let Ok(packet) = http::client::fetch_tetra_league_recent(&user_id.user_id).await else {
+    let Ok(packet) = tetrio_api::http::client::fetch_tetra_league_recent(&user_id.user_id).await else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "Couldn't fetch or parse data").into_response()
     };
     

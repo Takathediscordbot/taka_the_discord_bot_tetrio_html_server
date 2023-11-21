@@ -19,9 +19,10 @@ tracing = "0.1.37"
 tracing-subscriber = {version="0.3.17", features = ["env-filter"]}
 common = {path = "../taka_the_discord_bot_common" }
 tetrio-api = { path = "../tetrio-api" }
-itertools = "0.10.5"
+itertools = "0.12.0"
 reqwest = "0.11.18"
 dotenvy = "0.15.7"
 anyhow = "1.0.71"
 chrono = {version = "0.4.26", features = ["serde"]}
-moka = {version = "0.11.1", features = ["future"] }
+moka = {version = "0.12.1", features = ["future"] }
+# http = "1.0.0"
