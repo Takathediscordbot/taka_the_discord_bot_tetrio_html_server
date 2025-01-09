@@ -198,6 +198,7 @@ fn parse_mod_badge(role: &UserRole) -> String {
         UserRole::SysOp => TETO_HTML_MOD_BADGE.replace("{{mod_icon}}", "https://tetr.io/res/verified-sysop.png"),
         UserRole::HalfMod => TETO_HTML_MOD_BADGE.replace("{{mod_icon}}", "https://tetr.io/res/verified-halfmod.png"),
         UserRole::Hidden => String::new(),
+        UserRole::Unknown(_) => String::new(),
     }
 }
 
